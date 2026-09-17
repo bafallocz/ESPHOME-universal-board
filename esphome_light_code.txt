@@ -1,0 +1,142 @@
+esphome:
+  name: esphome-universal-light
+  friendly_name: "Universal Board Light"
+
+  # Safe initial state on startup (turn off all outputs)
+  on_boot:
+    - priority: 600
+      then:
+        - output.turn_off: pwm_1_output
+        - output.turn_off: pwm_2_output
+        - output.turn_off: pwm_3_output
+        - output.turn_off: relay_1_output
+        - output.turn_off: relay_2_output
+
+esp32:
+  board: esp32-c3-devkitm-1
+  framework:
+    type: esp-idf
+
+# Enable UART logging over USB-C
+logger:
+
+# Home Assistant Native API
+api:
+  encryption:
+    key: !secret api_encryption_key
+
+# Over-The-Air (OTA) Updates
+ota:
+  - platform: esphome
+    password: !secret ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Fallback AP in case Wi-Fi connection fails
+  ap:
+    ssid: "Universal-Light Fallback Hotspot"
+    password: !secret ap_password
+
+captive_portal:
+
+# ==============================================================================
+# I2C BUS (Broken out on pin header U$4)
+# ==============================================================================
+i2c:
+  sda: GPIO6   # Pin D4 on Seeed XIAO
+  scl: GPIO7   # Pin D5 on Seeed XIAO
+  scan: true
+  frequency: 400kHz
+  id: bus_a
+
+# ==============================================================================
+# DIGITAL TERMINAL INPUTS (J3 and J4)
+# ==============================================================================
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: GPIO4   # Pin D2 on Seeed XIAO (Terminal J3 / SWITCH1)
+      mode: INPUT
+    name: "Terminal Input 1 (J3)"
+    id: input_switch_1
+    filters:
+      - delayed_debounce: 50ms
+
+  - platform: gpio
+    pin:
+      number: GPIO3   # Pin D1 on Seeed XIAO (Terminal J4 / SWITCH2)
+      mode: INPUT
+    name: "Terminal Input 2 (J4)"
+    id: input_switch_2
+    filters:
+      - delayed_debounce: 50ms
+
+# ==============================================================================
+# HARDWARE OUTPUTS (Relay Coils + MOSFET PWM)
+# ==============================================================================
+output:
+  # --- Relays (Optically isolated via CPC1018N SSRs) ---
+  - platform: gpio
+    pin: GPIO2       # Pin D0 on Seeed XIAO (Relay K1 / OUT1)
+    id: relay_1_output
+
+  - platform: gpio
+    pin: GPIO5       # Pin D3 on Seeed XIAO (Relay K2 / OUT2)
+    id: relay_2_output
+
+  # --- Power SMD MOSFETs AO3400A (Hardware LEDC PWM) ---
+  - platform: ledc
+    pin: GPIO10      # Pin D10 on Seeed XIAO (Q8 / Terminal LED1)
+    id: pwm_1_output
+    frequency: 1000Hz
+
+  - platform: ledc
+    pin: GPIO9       # Pin D9 on Seeed XIAO (Q7 / Terminal LED2)
+    id: pwm_2_output
+    frequency: 1000Hz
+
+  - platform: ledc
+    pin: GPIO8       # Pin D8 on Seeed XIAO (Q6 / Terminal LED3)
+    id: pwm_3_output
+    frequency: 1000Hz
+
+# ==============================================================================
+# RELAY SWITCHES
+# ==============================================================================
+switch:
+  - platform: output
+    name: "Relay 1 (OUT1)"
+    output: relay_1_output
+    id: relay_1_switch
+    icon: "mdi:electric-switch"
+
+  - platform: output
+    name: "Relay 2 (OUT2)"
+    output: relay_2_output
+    id: relay_2_switch
+    icon: "mdi:electric-switch"
+
+# ==============================================================================
+# LIGHTS / DIMMERS
+# ==============================================================================
+light:
+  # --- OPTION A: 3 Independent Monochromatic Dimmers / Channels ---
+  - platform: monochromatic
+    name: "PWM Channel 1"
+    output: pwm_1_output
+    id: light_pwm_1
+    gamma_correct: 0   # 0 = linear duty cycle (ideal for lab loads/measurements); omit for visual lighting (default 2.8)
+
+  - platform: monochromatic
+    name: "PWM Channel 2"
+    output: pwm_2_output
+    id: light_pwm_2
+    gamma_correct: 0
+
+  - platform: monochromatic
+    name: "PWM Channel 3"
+    output: pwm_3_output
+    id: light_pwm_3
+    gamma_correct: 0

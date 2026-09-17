@@ -1,0 +1,283 @@
+esphome:
+  name: esphome-universal-full
+  friendly_name: "Universal Board Full"
+
+  # Safe initial state on boot
+  on_boot:
+    - priority: 600
+      then:
+        - output.turn_off: pwm_1_output
+        - output.turn_off: pwm_2_output
+        - output.turn_off: pwm_3_output
+        - output.turn_off: pwm_4_output
+        - output.turn_off: relay_1_output
+        - output.turn_off: relay_2_output
+
+esp32:
+  board: esp32-c3-devkitm-1
+  framework:
+    type: esp-idf
+
+# Enable UART logging over USB-C
+logger:
+
+# Home Assistant Native API
+api:
+  encryption:
+    key: !secret api_encryption_key
+
+# Over-The-Air (OTA) Updates
+ota:
+  - platform: esphome
+    password: !secret ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  ap:
+    ssid: "Universal-Full Fallback Hotspot"
+    password: !secret ap_password
+
+captive_portal:
+
+# ==============================================================================
+# SHARED I2C BUS (Connects to PCA9685, AD5593R, and external headers)
+# ==============================================================================
+i2c:
+  sda: GPIO6   # Pin D4 on Seeed XIAO (SDA_E)
+  scl: GPIO7   # Pin D5 on Seeed XIAO (SCL_E)
+  scan: true
+  frequency: 400kHz
+  id: bus_a
+
+# ==============================================================================
+# I2C EXPANDER 1: PCA9685 (16-channel 12-bit PWM Controller)
+# Address 0x40 (A0-A5 tied to GND)
+# ==============================================================================
+pca9685:
+  - id: pca_hub
+    i2c_id: bus_a
+    address: 0x40
+    frequency: 1000Hz
+
+# ==============================================================================
+# I2C EXPANDER 2: AD5593R (8-channel 12-bit Configurable ADC / DAC / GPIO)
+# Address 0x10 (A0 tied to GND, Internal 2.5V Reference)
+# ==============================================================================
+ad5593r:
+  - id: ad5593r_hub
+    i2c_id: bus_a
+    address: 0x10
+
+# ==============================================================================
+# DIGITAL INPUTS (Screw terminals SW1 and SW2 with ESD protection)
+# ==============================================================================
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: GPIO4   # Pin D2 on Seeed XIAO (SW1 / SWITCH1)
+      mode: INPUT
+    name: "Terminal Input 1 (SW1)"
+    id: input_switch_1
+    filters:
+      - delayed_debounce: 50ms
+
+  - platform: gpio
+    pin:
+      number: GPIO3   # Pin D1 on Seeed XIAO (SW2 / SWITCH2)
+      mode: INPUT
+    name: "Terminal Input 2 (SW2)"
+    id: input_switch_2
+    filters:
+      - delayed_debounce: 50ms
+
+# ==============================================================================
+# HARDWARE OUTPUT DEFINITIONS
+# ==============================================================================
+output:
+  # --- Onboard 230V Relays (Isolated via CPC1018N SSRs) ---
+  - platform: gpio
+    pin: GPIO2       # Pin D0 on Seeed XIAO (RELE1 -> K1)
+    id: relay_1_output
+
+  - platform: gpio
+    pin: GPIO5       # Pin D3 on Seeed XIAO (RELE2 -> K2)
+    id: relay_2_output
+
+  # --- 4x High-Current PWM Channels (Driven via TC4427 Gate Drivers) ---
+  - platform: ledc
+    pin: GPIO8       # Pin D8 on Seeed XIAO -> TC4427 U6 IN_A -> MOSFET 1
+    id: pwm_1_output
+    frequency: 1000Hz
+
+  - platform: pca9685
+    pca9685_id: pca_hub
+    channel: 0       # PCA9685 Channel LED0 (PWM2_SLOW) -> TC4427 U6 IN_B -> MOSFET 2
+    id: pwm_2_output
+
+  - platform: ledc
+    pin: GPIO9       # Pin D9 on Seeed XIAO -> TC4427 U7 IN_A -> MOSFET 3
+    id: pwm_3_output
+    frequency: 1000Hz
+
+  - platform: ledc
+    pin: GPIO10      # Pin D10 on Seeed XIAO -> TC4427 U7 IN_B -> MOSFET 4
+    id: pwm_4_output
+    frequency: 1000Hz
+
+  # --- PCA9685 Expansion Header Channels (JP1 Header: EX_PWM1 to EX_PWM15) ---
+  - platform: pca9685
+    pca9685_id: pca_hub
+    channel: 1
+    id: out_ex_pwm1
+  - platform: pca9685
+    pca9685_id: pca_hub
+    channel: 2
+    id: out_ex_pwm2
+  - platform: pca9685
+    pca9685_id: pca_hub
+    channel: 3
+    id: out_ex_pwm3
+  - platform: pca9685
+    pca9685_id: pca_hub
+    channel: 4
+    id: out_ex_pwm4
+  - platform: pca9685
+    pca9685_id: pca_hub
+    channel: 5
+    id: out_ex_pwm5
+  - platform: pca9685
+    pca9685_id: pca_hub
+    channel: 6
+    id: out_ex_pwm6
+  - platform: pca9685
+    pca9685_id: pca_hub
+    channel: 7
+    id: out_ex_pwm7
+  - platform: pca9685
+    pca9685_id: pca_hub
+    channel: 8
+    id: out_ex_pwm8
+  - platform: pca9685
+    pca9685_id: pca_hub
+    channel: 9
+    id: out_ex_pwm9
+  - platform: pca9685
+    pca9685_id: pca_hub
+    channel: 10
+    id: out_ex_pwm10
+  - platform: pca9685
+    pca9685_id: pca_hub
+    channel: 11
+    id: out_ex_pwm11
+  - platform: pca9685
+    pca9685_id: pca_hub
+    channel: 12
+    id: out_ex_pwm12
+  - platform: pca9685
+    pca9685_id: pca_hub
+    channel: 13
+    id: out_ex_pwm13
+  - platform: pca9685
+    pca9685_id: pca_hub
+    channel: 14
+    id: out_ex_pwm14
+  - platform: pca9685
+    pca9685_id: pca_hub
+    channel: 15
+    id: out_ex_pwm15
+
+  # --- AD5593R Analog Voltage Outputs (DAC Example on IO0 and IO1) ---
+  - platform: ad5593r
+    ad5593r_id: ad5593r_hub
+    channel: 0       # AD5593R Pin 4 (I/O0) -> DAC Pin 1
+    id: dac_out_0
+  - platform: ad5593r
+    ad5593r_id: ad5593r_hub
+    channel: 1       # AD5593R Pin 5 (I/O1) -> DAC Pin 2
+    id: dac_out_1
+
+# ==============================================================================
+# AD5593R ANALOG INPUTS (ADC Example on IO2 to IO7)
+# ==============================================================================
+sensor:
+  - platform: ad5593r
+    ad5593r_id: ad5593r_hub
+    channel: 2       # AD5593R Pin 6 (I/O2) -> Terminal Pin 3
+    name: "AD5593R Analog Input 2"
+    update_interval: 1s
+
+  - platform: ad5593r
+    ad5593r_id: ad5593r_hub
+    channel: 3       # AD5593R Pin 7 (I/O3) -> Terminal Pin 4
+    name: "AD5593R Analog Input 3"
+    update_interval: 1s
+
+  - platform: ad5593r
+    ad5593r_id: ad5593r_hub
+    channel: 4       # AD5593R Pin 10 (I/O4) -> Terminal Pin 5
+    name: "AD5593R Analog Input 4"
+    update_interval: 1s
+
+  - platform: ad5593r
+    ad5593r_id: ad5593r_hub
+    channel: 5       # AD5593R Pin 11 (I/O5) -> Terminal Pin 6
+    name: "AD5593R Analog Input 5"
+    update_interval: 1s
+
+  - platform: ad5593r
+    ad5593r_id: ad5593r_hub
+    channel: 6       # AD5593R Pin 12 (I/O6) -> Terminal Pin 7
+    name: "AD5593R Analog Input 6"
+    update_interval: 1s
+
+  - platform: ad5593r
+    ad5593r_id: ad5593r_hub
+    channel: 7       # AD5593R Pin 13 (I/O7) -> Terminal Pin 8
+    name: "AD5593R Analog Input 7"
+    update_interval: 1s
+
+# ==============================================================================
+# RELAY SWITCHES
+# ==============================================================================
+switch:
+  - platform: output
+    name: "Relay 1"
+    output: relay_1_output
+    id: switch_relay_1
+    icon: "mdi:electric-switch"
+
+  - platform: output
+    name: "Relay 2"
+    output: relay_2_output
+    id: switch_relay_2
+    icon: "mdi:electric-switch"
+
+# ==============================================================================
+# HIGH-POWER PWM CHANNELS / LIGHTS
+# ==============================================================================
+light:
+  - platform: monochromatic
+    name: "Power PWM 1 (Fast MCU)"
+    output: pwm_1_output
+    id: light_pwm_1
+    gamma_correct: 0
+
+  - platform: monochromatic
+    name: "Power PWM 2 (PCA9685 LED0)"
+    output: pwm_2_output
+    id: light_pwm_2
+    gamma_correct: 0
+
+  - platform: monochromatic
+    name: "Power PWM 3 (Fast MCU)"
+    output: pwm_3_output
+    id: light_pwm_3
+    gamma_correct: 0
+
+  - platform: monochromatic
+    name: "Power PWM 4 (Fast MCU)"
+    output: pwm_4_output
+    id: light_pwm_4
+    gamma_correct: 0

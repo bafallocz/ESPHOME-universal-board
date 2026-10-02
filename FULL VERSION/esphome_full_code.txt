@@ -1,3 +1,6 @@
+# Board: Seeed Studio XIAO ESP32C3
+# Definition: definitions/boards/seeed_xiao_esp32c3/manifest.yaml
+
 # ==============================================================================
 # ESPHome Universal Automation Board - Hardware Verification & Test Suite
 # ==============================================================================
@@ -21,12 +24,12 @@ external_components:
     refresh: 0s
 
   # Option 2: Local repository directory (for offline development)
-  # - source: components
+  # - source: ESPHOME-universal-board/components
   #   components: [ ad5593r ]
-
+  
 esphome:
-  name: universal-board-test
-  friendly_name: "Universal Board Hardware Test"
+  name: backup-uni
+  friendly_name: backup_uni
 
   # --------------------------------------------------------------------------
   # SELF-TEST & OSCILLOSCOPE GENERATOR ON BOOT
@@ -94,28 +97,26 @@ esphome:
             level: INFO
             format: ">>> ALL OSCILLOSCOPE TEST SIGNALS ACTIVE. READY FOR MEASUREMENT <<<"
 
+          
 esp32:
-  board: esp32-c3-devkitm-1
   variant: esp32c3
-  framework:
-    type: esp-idf  # Fully supported by native AD5593R driver
 
 logger:
-  level: DEBUG
 
 api:
   encryption:
-    key: "rMBZb0YRBB+G1RDmBfRWNn3uSsFGu6cqZ7s5HJH1eD4="
+    key: "YOUR_API_KEY"
 
 ota:
   - platform: esphome
+    encryption:
 
 wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
   ap:
-    ssid: "Universal-Board-Test Fallback AP"
-    password: "Password123"
+    ssid: backup_uni Fallback Hotspot
+    password: "YOUR_WIFI_KEY"
 
 captive_portal:
 
@@ -162,7 +163,7 @@ binary_sensor:
     name: "Terminal Input 1 (SW1)"
     id: input_switch_1
     filters:
-      - delayed_debounce: 50ms
+      - delayed_on_off: 50ms
     on_press:
       - logger.log: ">>> SW1 Terminal Input Pressed (Closed) <<<"
     on_release:
@@ -175,7 +176,7 @@ binary_sensor:
     name: "Terminal Input 2 (SW2)"
     id: input_switch_2
     filters:
-      - delayed_debounce: 50ms
+      - delayed_on_off: 50ms
     on_press:
       - logger.log: ">>> SW2 Terminal Input Pressed (Closed) <<<"
     on_release:

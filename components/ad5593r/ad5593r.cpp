@@ -150,12 +150,10 @@ void AD5593RComponent::setup() {
   }
 
   // 8. Configure Pull-down resistors
-  if (this->pulldown_mask_ != 0) {
-    if (!this->write_reg_16(AD5593R_REG_PULLDOWN, this->pulldown_mask_)) {
-      ESP_LOGE(TAG, "Failed to configure pull-downs (mask: 0x%02X)!", this->pulldown_mask_);
-      this->mark_failed();
-      return;
-    }
+  if (!this->write_reg_16(AD5593R_REG_PULLDOWN, this->pulldown_mask_)) {
+    ESP_LOGE(TAG, "Failed to configure pull-downs (mask: 0x%02X)!", this->pulldown_mask_);
+    this->mark_failed();
+    return;
   }
 
   ESP_LOGCONFIG(TAG, "AD5593R initialized successfully. Gain=%s (0-%.1fV)",
@@ -234,10 +232,13 @@ bool AD5593RComponent::write_dac(uint8_t channel, float level) {
 #endif
 
 #ifdef USE_SENSOR
-void AD5593RComponent::register_adc_sensor(AD5593RSensor *sensor) {
+void AD5593RComponent::register_adc_sensor(AD5593RSensor *sensor, bool pulldown) {
   uint8_t ch = sensor->get_channel();
   if (ch < 8) {
     this->adc_pin_mask_ |= (1 << ch);
+    if (pulldown) {
+      this->pulldown_mask_ |= (1 << ch);
+    }
   }
 }
 

@@ -33,6 +33,8 @@ def validate_channel(value):
     raise cv.Invalid("Channel must be an integer between 0 and 7, or 'temperature'")
 
 
+CONF_PULLDOWN = "pulldown"
+
 BASE_SCHEMA = (
     sensor.sensor_schema(
         AD5593RSensor,
@@ -42,6 +44,7 @@ BASE_SCHEMA = (
         {
             cv.GenerateID(CONF_AD5593R_ID): cv.use_id(AD5593RComponent),
             cv.Required(CONF_CHANNEL): validate_channel,
+            cv.Optional(CONF_PULLDOWN, default=True): cv.boolean,
         }
     )
     .extend(cv.polling_component_schema("60s"))
@@ -77,4 +80,4 @@ async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID], parent, ch)
     await cg.register_component(var, config)
     await sensor.register_sensor(var, config)
-    cg.add(parent.register_adc_sensor(var))
+    cg.add(parent.register_adc_sensor(var, config[CONF_PULLDOWN]))

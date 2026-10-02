@@ -4,7 +4,7 @@
 # Target Hardware: Seeed Studio XIAO ESP32-C3
 # I2C Peripherals:
 #   - PCA9685PW  (0x40): 16-channel 12-bit PWM Expander (MOSFET 2 + 15x Header)
-#   - AD5593R    (0x10): 8-channel 12-bit Configurable ADC / DAC / GPIO
+#   - AD5593R    (0x11): 8-channel 12-bit Configurable ADC / DAC / GPIO
 # Onboard Power & Switching:
 #   - 4x High-Power MOSFETs driven by TC4427 Gate Drivers (12V rail)
 #   - 2x 250VAC/10A Relays isolated via CPC1018N Solid State Relays
@@ -386,32 +386,38 @@ number:
   - platform: template
     name: "AD5593R DAC 0 Output Voltage"
     icon: "mdi:sine-wave"
-    min_value: 0
-    max_value: 1
-    step: 0.01
-    initial_value: 0.50
+    unit_of_measurement: "V"
+    min_value: 0.0
+    max_value: 5.0
+    step: 0.05
+    initial_value: 2.50
+    optimistic: true
     mode: slider
     set_action:
       - output.set_level:
           id: dac_out_0
-          level: !lambda 'return x;'
+          level: !lambda 'return x / 5.0;'
 
   - platform: template
     name: "AD5593R DAC 1 Output Voltage"
     icon: "mdi:sine-wave"
-    min_value: 0
-    max_value: 1
-    step: 0.01
-    initial_value: 0.70
+    unit_of_measurement: "V"
+    min_value: 0.0
+    max_value: 5.0
+    step: 0.05
+    initial_value: 3.50
+    optimistic: true
     mode: slider
     set_action:
       - output.set_level:
           id: dac_out_1
-          level: !lambda 'return x;'
+          level: !lambda 'return x / 5.0;'
 
 # ==============================================================================
 # AD5593R ANALOG SENSORS (ADC Channels & Die Temperature)
 # Measured voltages reported in Volts (0.000 V to 5.000 V)
+# Note: Internal 85 kΩ pull-down resistors are active by default (pulldown: true)
+# so unconnected floating pins read 0.000 V instead of floating at ~0.9 V.
 # ==============================================================================
 sensor:
   - platform: ad5593r

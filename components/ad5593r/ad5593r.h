@@ -96,7 +96,7 @@ class AD5593RComponent : public Component, public i2c::I2CDevice {
 #endif
 
 #ifdef USE_SENSOR
-  void register_adc_sensor(AD5593RSensor *sensor);
+  void register_adc_sensor(AD5593RSensor *sensor, bool pulldown = false);
   bool read_adc_voltage(uint8_t channel, float &voltage);
   bool read_temperature(float &temp_c);
 #endif

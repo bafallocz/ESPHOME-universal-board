@@ -30,18 +30,12 @@ static const uint8_t AD5593R_CMD_ADC_READ        = 0x40;
 static const uint8_t AD5593R_CMD_GPIO_READ       = 0x60;
 
 #ifdef USE_OUTPUT
-AD5593RChannel::AD5593RChannel(AD5593RComponent *parent, uint8_t channel)
-    : parent_(parent), channel_(channel) {}
-
 void AD5593RChannel::write_state(float state) {
   this->parent_->write_dac(this->channel_, state);
 }
 #endif
 
 #ifdef USE_SENSOR
-AD5593RSensor::AD5593RSensor(AD5593RComponent *parent, uint8_t channel)
-    : parent_(parent), channel_(channel) {}
-
 void AD5593RSensor::update() {
   if (this->parent_->is_failed()) {
     return;
@@ -66,14 +60,10 @@ void AD5593RSensor::update() {
 #endif
 
 #ifdef USE_BINARY_SENSOR
-AD5593RBinarySensor::AD5593RBinarySensor(AD5593RComponent *parent, uint8_t channel)
-    : parent_(parent), channel_(channel) {}
+// AD5593RBinarySensor constructor is defined inline in ad5593r.h
 #endif
 
 #ifdef USE_SWITCH
-AD5593RSwitch::AD5593RSwitch(AD5593RComponent *parent, uint8_t channel)
-    : parent_(parent), channel_(channel) {}
-
 void AD5593RSwitch::write_state(bool state) {
   if (this->parent_->write_gpio(this->channel_, state)) {
     this->publish_state(state);

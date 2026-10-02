@@ -1,59 +1,136 @@
-esphome:
-  name: esphome-universal-full
-  friendly_name: "Universal Board Full"
+# ==============================================================================
+# ESPHome Universal Automation Board - Hardware Verification & Test Suite
+# ==============================================================================
+# Target Hardware: Seeed Studio XIAO ESP32-C3
+# I2C Peripherals:
+#   - PCA9685PW  (0x40): 16-channel 12-bit PWM Expander (MOSFET 2 + 15x Header)
+#   - AD5593R    (0x10): 8-channel 12-bit Configurable ADC / DAC / GPIO
+# Onboard Power & Switching:
+#   - 4x High-Power MOSFETs driven by TC4427 Gate Drivers (12V rail)
+#   - 2x 250VAC/10A Relays isolated via CPC1018N Solid State Relays
+#   - 2x Terminal Digital Inputs (SW1, SW2) with PESD3V3L2BT ESD protection
+# ==============================================================================
 
-  # Safe initial state on boot
+# ==============================================================================
+# EXTERNAL COMPONENTS
+# ==============================================================================
+external_components:
+  # Option 1: Automatic import from GitHub repository (Recommended)
+  - source: github://bafallocz/ESPHOME-universal-board
+    components: [ ad5593r ]
+
+  # Option 2: Local repository directory (for offline development)
+  # - source: components
+  #   components: [ ad5593r ]
+
+esphome:
+  name: universal-board-test
+  friendly_name: "Universal Board Hardware Test"
+
+  # --------------------------------------------------------------------------
+  # SELF-TEST & OSCILLOSCOPE GENERATOR ON BOOT
+  # Initializes all PWM channels, DAC outputs, and relays to known test states
+  # so that every pin can be verified with an oscilloscope or multimeter.
+  # --------------------------------------------------------------------------
   on_boot:
-    - priority: 600
+    - priority: 500  # Runs after all hardware drivers are fully initialized
       then:
-        - output.turn_off: pwm_1_output
-        - output.turn_off: pwm_2_output
-        - output.turn_off: pwm_3_output
-        - output.turn_off: pwm_4_output
+        - logger.log:
+            level: INFO
+            format: ">>> STARTING HARDWARE VERIFICATION & OSCILLOSCOPE SIGNALS <<<"
+
+        # --- 1. Initialize AD5593R DAC Analog Outputs ---
+        # DAC 0 (Pin 1 on DAC Header) -> Set to 50% = 2.50 V
+        - output.set_level:
+            id: dac_out_0
+            level: 0.50
+        # DAC 1 (Pin 2 on DAC Header) -> Set to 70% = 3.50 V
+        - output.set_level:
+            id: dac_out_1
+            level: 0.70
+
+        # --- 2. Initialize 4x High-Power MOSFET PWM Channels (1 kHz) ---
+        # PWM 1 (GPIO8  -> TC4427 IN_A -> FET 1): 25% Duty Cycle
+        - output.set_level:
+            id: pwm_1_output
+            level: 0.25
+        # PWM 2 (PCA9685 CH0 -> TC4427 IN_B -> FET 2): 50% Duty Cycle
+        - output.set_level:
+            id: pwm_2_output
+            level: 0.50
+        # PWM 3 (GPIO9  -> TC4427 IN_A -> FET 3): 75% Duty Cycle
+        - output.set_level:
+            id: pwm_3_output
+            level: 0.75
+        # PWM 4 (GPIO10 -> TC4427 IN_B -> FET 4): 90% Duty Cycle
+        - output.set_level:
+            id: pwm_4_output
+            level: 0.90
+
+        # --- 3. Initialize PCA9685 Expansion Header Channels (EX_PWM1..15) ---
+        # Set staggered duty cycles so every pin on JP1 header shows distinct activity
+        - output.set_level: { id: out_ex_pwm1,  level: 0.10 }
+        - output.set_level: { id: out_ex_pwm2,  level: 0.20 }
+        - output.set_level: { id: out_ex_pwm3,  level: 0.30 }
+        - output.set_level: { id: out_ex_pwm4,  level: 0.40 }
+        - output.set_level: { id: out_ex_pwm5,  level: 0.50 }
+        - output.set_level: { id: out_ex_pwm6,  level: 0.60 }
+        - output.set_level: { id: out_ex_pwm7,  level: 0.70 }
+        - output.set_level: { id: out_ex_pwm8,  level: 0.80 }
+        - output.set_level: { id: out_ex_pwm9,  level: 0.90 }
+        - output.set_level: { id: out_ex_pwm10, level: 0.25 }
+        - output.set_level: { id: out_ex_pwm11, level: 0.50 }
+        - output.set_level: { id: out_ex_pwm12, level: 0.75 }
+        - output.set_level: { id: out_ex_pwm13, level: 0.33 }
+        - output.set_level: { id: out_ex_pwm14, level: 0.66 }
+        - output.set_level: { id: out_ex_pwm15, level: 0.50 }
+
+        # --- 4. Relays Default State (Off for safety) ---
         - output.turn_off: relay_1_output
         - output.turn_off: relay_2_output
 
+        - logger.log:
+            level: INFO
+            format: ">>> ALL OSCILLOSCOPE TEST SIGNALS ACTIVE. READY FOR MEASUREMENT <<<"
+
 esp32:
   board: esp32-c3-devkitm-1
+  variant: esp32c3
   framework:
-    type: esp-idf
+    type: esp-idf  # Fully supported by native AD5593R driver
 
-# Enable UART logging over USB-C
 logger:
+  level: DEBUG
 
-# Home Assistant Native API
 api:
   encryption:
-    key: !secret api_encryption_key
+    key: "rMBZb0YRBB+G1RDmBfRWNn3uSsFGu6cqZ7s5HJH1eD4="
 
-# Over-The-Air (OTA) Updates
 ota:
   - platform: esphome
-    password: !secret ota_password
 
 wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
-
   ap:
-    ssid: "Universal-Full Fallback Hotspot"
-    password: !secret ap_password
+    ssid: "Universal-Board-Test Fallback AP"
+    password: "Password123"
 
 captive_portal:
 
 # ==============================================================================
-# SHARED I2C BUS (Connects to PCA9685, AD5593R, and external headers)
+# I2C BUS (SDA=GPIO6 / Pin D4, SCL=GPIO7 / Pin D5)
 # ==============================================================================
 i2c:
-  sda: GPIO6   # Pin D4 on Seeed XIAO (SDA_E)
-  scl: GPIO7   # Pin D5 on Seeed XIAO (SCL_E)
+  sda: GPIO6
+  scl: GPIO7
   scan: true
   frequency: 400kHz
   id: bus_a
 
 # ==============================================================================
 # I2C EXPANDER 1: PCA9685 (16-channel 12-bit PWM Controller)
-# Address 0x40 (A0-A5 tied to GND)
+# I2C Address: 0x40 (A0-A5 tied to GND)
 # ==============================================================================
 pca9685:
   - id: pca_hub
@@ -62,71 +139,82 @@ pca9685:
     frequency: 1000Hz
 
 # ==============================================================================
-# I2C EXPANDER 2: AD5593R (8-channel 12-bit Configurable ADC / DAC / GPIO)
-# Address 0x10 (A0 tied to GND, Internal 2.5V Reference)
+# I2C EXPANDER 2: AD5593R (8-channel Configurable ADC / DAC / GPIO)
+# I2C Address: 0x10 (A0 tied to GND)
+# Voltage Range: 0 to 5.0 V (Internal 2.5V reference + 2x Gain buffer)
 # ==============================================================================
 ad5593r:
   - id: ad5593r_hub
     i2c_id: bus_a
     address: 0x10
+    reference_voltage: 2.5V
+    gain_2x: true  # Full 0-5.0V output and input range
 
 # ==============================================================================
-# DIGITAL INPUTS (Screw terminals SW1 and SW2 with ESD protection)
+# DIGITAL TERMINAL INPUTS (SW1, SW2)
 # ==============================================================================
 binary_sensor:
   - platform: gpio
     pin:
-      number: GPIO4   # Pin D2 on Seeed XIAO (SW1 / SWITCH1)
+      number: GPIO4   # Pin D2 on XIAO (Terminal SW1)
       mode: INPUT
     name: "Terminal Input 1 (SW1)"
     id: input_switch_1
     filters:
       - delayed_debounce: 50ms
+    on_press:
+      - logger.log: ">>> SW1 Terminal Input Pressed (Closed) <<<"
+    on_release:
+      - logger.log: ">>> SW1 Terminal Input Released (Open) <<<"
 
   - platform: gpio
     pin:
-      number: GPIO3   # Pin D1 on Seeed XIAO (SW2 / SWITCH2)
+      number: GPIO3   # Pin D1 on XIAO (Terminal SW2)
       mode: INPUT
     name: "Terminal Input 2 (SW2)"
     id: input_switch_2
     filters:
       - delayed_debounce: 50ms
+    on_press:
+      - logger.log: ">>> SW2 Terminal Input Pressed (Closed) <<<"
+    on_release:
+      - logger.log: ">>> SW2 Terminal Input Released (Open) <<<"
 
 # ==============================================================================
 # HARDWARE OUTPUT DEFINITIONS
 # ==============================================================================
 output:
-  # --- Onboard 230V Relays (Isolated via CPC1018N SSRs) ---
+  # --- 1. Onboard 230VAC Relays (Isolated CPC1018N SSR Drivers) ---
   - platform: gpio
-    pin: GPIO2       # Pin D0 on Seeed XIAO (RELE1 -> K1)
+    pin: GPIO2       # Pin D0 on XIAO -> Relay 1
     id: relay_1_output
 
   - platform: gpio
-    pin: GPIO5       # Pin D3 on Seeed XIAO (RELE2 -> K2)
+    pin: GPIO5       # Pin D3 on XIAO -> Relay 2
     id: relay_2_output
 
-  # --- 4x High-Current PWM Channels (Driven via TC4427 Gate Drivers) ---
+  # --- 2. 4x High-Power MOSFET PWM Channels (TC4427 Gate Drivers @ 12V) ---
   - platform: ledc
-    pin: GPIO8       # Pin D8 on Seeed XIAO -> TC4427 U6 IN_A -> MOSFET 1
+    pin: GPIO8       # Pin D8 on XIAO -> TC4427 U6 IN_A -> MOSFET 1
     id: pwm_1_output
     frequency: 1000Hz
 
   - platform: pca9685
     pca9685_id: pca_hub
-    channel: 0       # PCA9685 Channel LED0 (PWM2_SLOW) -> TC4427 U6 IN_B -> MOSFET 2
+    channel: 0       # PCA9685 CH0   -> TC4427 U6 IN_B -> MOSFET 2
     id: pwm_2_output
 
   - platform: ledc
-    pin: GPIO9       # Pin D9 on Seeed XIAO -> TC4427 U7 IN_A -> MOSFET 3
+    pin: GPIO9       # Pin D9 on XIAO -> TC4427 U7 IN_A -> MOSFET 3
     id: pwm_3_output
     frequency: 1000Hz
 
   - platform: ledc
-    pin: GPIO10      # Pin D10 on Seeed XIAO -> TC4427 U7 IN_B -> MOSFET 4
+    pin: GPIO10      # Pin D10 on XIAO -> TC4427 U7 IN_B -> MOSFET 4
     id: pwm_4_output
     frequency: 1000Hz
 
-  # --- PCA9685 Expansion Header Channels (JP1 Header: EX_PWM1 to EX_PWM15) ---
+  # --- 3. PCA9685 Expansion Header Channels (EX_PWM1 to EX_PWM15) ---
   - platform: pca9685
     pca9685_id: pca_hub
     channel: 1
@@ -188,58 +276,18 @@ output:
     channel: 15
     id: out_ex_pwm15
 
-  # --- AD5593R Analog Voltage Outputs (DAC Example on IO0 and IO1) ---
+  # --- 4. AD5593R Precision DAC Outputs (0.0 to 1.0 => 0.00 V to 5.00 V) ---
   - platform: ad5593r
     ad5593r_id: ad5593r_hub
-    channel: 0       # AD5593R Pin 4 (I/O0) -> DAC Pin 1
+    channel: 0       # Pin 4 (I/O0) -> DAC/ADC Header Pin 8
     id: dac_out_0
   - platform: ad5593r
     ad5593r_id: ad5593r_hub
-    channel: 1       # AD5593R Pin 5 (I/O1) -> DAC Pin 2
+    channel: 1       # Pin 5 (I/O1) -> DAC/ADC Header Pin 7
     id: dac_out_1
 
 # ==============================================================================
-# AD5593R ANALOG INPUTS (ADC Example on IO2 to IO7)
-# ==============================================================================
-sensor:
-  - platform: ad5593r
-    ad5593r_id: ad5593r_hub
-    channel: 2       # AD5593R Pin 6 (I/O2) -> Terminal Pin 3
-    name: "AD5593R Analog Input 2"
-    update_interval: 1s
-
-  - platform: ad5593r
-    ad5593r_id: ad5593r_hub
-    channel: 3       # AD5593R Pin 7 (I/O3) -> Terminal Pin 4
-    name: "AD5593R Analog Input 3"
-    update_interval: 1s
-
-  - platform: ad5593r
-    ad5593r_id: ad5593r_hub
-    channel: 4       # AD5593R Pin 10 (I/O4) -> Terminal Pin 5
-    name: "AD5593R Analog Input 4"
-    update_interval: 1s
-
-  - platform: ad5593r
-    ad5593r_id: ad5593r_hub
-    channel: 5       # AD5593R Pin 11 (I/O5) -> Terminal Pin 6
-    name: "AD5593R Analog Input 5"
-    update_interval: 1s
-
-  - platform: ad5593r
-    ad5593r_id: ad5593r_hub
-    channel: 6       # AD5593R Pin 12 (I/O6) -> Terminal Pin 7
-    name: "AD5593R Analog Input 6"
-    update_interval: 1s
-
-  - platform: ad5593r
-    ad5593r_id: ad5593r_hub
-    channel: 7       # AD5593R Pin 13 (I/O7) -> Terminal Pin 8
-    name: "AD5593R Analog Input 7"
-    update_interval: 1s
-
-# ==============================================================================
-# RELAY SWITCHES
+# RELAY SWITCHES (Home Assistant Entities)
 # ==============================================================================
 switch:
   - platform: output
@@ -255,29 +303,194 @@ switch:
     icon: "mdi:electric-switch"
 
 # ==============================================================================
-# HIGH-POWER PWM CHANNELS / LIGHTS
+# PWM LIGHT CONTROLS (Allows live duty cycle adjustments from Home Assistant)
 # ==============================================================================
 light:
+  # 4x High-Power MOSFETs
   - platform: monochromatic
-    name: "Power PWM 1 (Fast MCU)"
+    name: "Power PWM 1 (Fast MCU GPIO8)"
     output: pwm_1_output
     id: light_pwm_1
     gamma_correct: 0
 
   - platform: monochromatic
-    name: "Power PWM 2 (PCA9685 LED0)"
+    name: "Power PWM 2 (PCA9685 CH0)"
     output: pwm_2_output
     id: light_pwm_2
     gamma_correct: 0
 
   - platform: monochromatic
-    name: "Power PWM 3 (Fast MCU)"
+    name: "Power PWM 3 (Fast MCU GPIO9)"
     output: pwm_3_output
     id: light_pwm_3
     gamma_correct: 0
 
   - platform: monochromatic
-    name: "Power PWM 4 (Fast MCU)"
+    name: "Power PWM 4 (Fast MCU GPIO10)"
     output: pwm_4_output
     id: light_pwm_4
     gamma_correct: 0
+
+  # 15x Expansion Header PWMs
+  - platform: monochromatic
+    name: "Expansion PWM 1"
+    output: out_ex_pwm1
+  - platform: monochromatic
+    name: "Expansion PWM 2"
+    output: out_ex_pwm2
+  - platform: monochromatic
+    name: "Expansion PWM 3"
+    output: out_ex_pwm3
+  - platform: monochromatic
+    name: "Expansion PWM 4"
+    output: out_ex_pwm4
+  - platform: monochromatic
+    name: "Expansion PWM 5"
+    output: out_ex_pwm5
+  - platform: monochromatic
+    name: "Expansion PWM 6"
+    output: out_ex_pwm6
+  - platform: monochromatic
+    name: "Expansion PWM 7"
+    output: out_ex_pwm7
+  - platform: monochromatic
+    name: "Expansion PWM 8"
+    output: out_ex_pwm8
+  - platform: monochromatic
+    name: "Expansion PWM 9"
+    output: out_ex_pwm9
+  - platform: monochromatic
+    name: "Expansion PWM 10"
+    output: out_ex_pwm10
+  - platform: monochromatic
+    name: "Expansion PWM 11"
+    output: out_ex_pwm11
+  - platform: monochromatic
+    name: "Expansion PWM 12"
+    output: out_ex_pwm12
+  - platform: monochromatic
+    name: "Expansion PWM 13"
+    output: out_ex_pwm13
+  - platform: monochromatic
+    name: "Expansion PWM 14"
+    output: out_ex_pwm14
+  - platform: monochromatic
+    name: "Expansion PWM 15"
+    output: out_ex_pwm15
+
+# ==============================================================================
+# DAC VOLTAGE SLIDERS (Controls DAC 0 to 5.0 V in Home Assistant)
+# ==============================================================================
+number:
+  - platform: template
+    name: "AD5593R DAC 0 Output Voltage"
+    icon: "mdi:sine-wave"
+    min_value: 0
+    max_value: 1
+    step: 0.01
+    initial_value: 0.50
+    mode: slider
+    set_action:
+      - output.set_level:
+          id: dac_out_0
+          level: !lambda 'return x;'
+
+  - platform: template
+    name: "AD5593R DAC 1 Output Voltage"
+    icon: "mdi:sine-wave"
+    min_value: 0
+    max_value: 1
+    step: 0.01
+    initial_value: 0.70
+    mode: slider
+    set_action:
+      - output.set_level:
+          id: dac_out_1
+          level: !lambda 'return x;'
+
+# ==============================================================================
+# AD5593R ANALOG SENSORS (ADC Channels & Die Temperature)
+# Measured voltages reported in Volts (0.000 V to 5.000 V)
+# ==============================================================================
+sensor:
+  - platform: ad5593r
+    ad5593r_id: ad5593r_hub
+    channel: 2       # Pin 6  (I/O2) -> DAC/ADC Header Pin 6
+    name: "AD5593R Analog Input 2 (IO2)"
+    id: adc_sensor_io2
+    update_interval: 1s
+
+  - platform: ad5593r
+    ad5593r_id: ad5593r_hub
+    channel: 3       # Pin 7  (I/O3) -> DAC/ADC Header Pin 5
+    name: "AD5593R Analog Input 3 (IO3)"
+    id: adc_sensor_io3
+    update_interval: 1s
+
+  - platform: ad5593r
+    ad5593r_id: ad5593r_hub
+    channel: 4       # Pin 10 (I/O4) -> DAC/ADC Header Pin 4
+    name: "AD5593R Analog Input 4 (IO4)"
+    id: adc_sensor_io4
+    update_interval: 1s
+
+  - platform: ad5593r
+    ad5593r_id: ad5593r_hub
+    channel: 5       # Pin 11 (I/O5) -> DAC/ADC Header Pin 3
+    name: "AD5593R Analog Input 5 (IO5)"
+    id: adc_sensor_io5
+    update_interval: 1s
+
+  - platform: ad5593r
+    ad5593r_id: ad5593r_hub
+    channel: 6       # Pin 12 (I/O6) -> DAC/ADC Header Pin 2
+    name: "AD5593R Analog Input 6 (IO6)"
+    id: adc_sensor_io6
+    update_interval: 1s
+
+  - platform: ad5593r
+    ad5593r_id: ad5593r_hub
+    channel: 7       # Pin 13 (I/O7) -> DAC/ADC Header Pin 1
+    name: "AD5593R Analog Input 7 (IO7)"
+    id: adc_sensor_io7
+    update_interval: 1s
+
+  # AD5593R Integrated Die Temperature Indicator (°C)
+  - platform: ad5593r
+    ad5593r_id: ad5593r_hub
+    channel: temperature
+    name: "AD5593R Chip Temperature"
+    id: ad5593r_die_temp
+    update_interval: 5s
+
+# ==============================================================================
+# PERIODIC DIAGNOSTIC LOGGER
+# Prints live hardware telemetry directly to the USB UART console every 10s
+# ==============================================================================
+interval:
+  - interval: 10s
+    then:
+      - logger.log:
+          level: INFO
+          format: "=== HARDWARE TELEMETRY REPORT ==="
+      - logger.log:
+          level: INFO
+          format: "AD5593R Die Temp: %.1f °C"
+          args: [ 'id(ad5593r_die_temp).state' ]
+      - logger.log:
+          level: INFO
+          format: "AD5593R ADC IO2..IO4: [%.3f V, %.3f V, %.3f V]"
+          args: [ 'id(adc_sensor_io2).state', 'id(adc_sensor_io3).state', 'id(adc_sensor_io4).state' ]
+      - logger.log:
+          level: INFO
+          format: "AD5593R ADC IO5..IO7: [%.3f V, %.3f V, %.3f V]"
+          args: [ 'id(adc_sensor_io5).state', 'id(adc_sensor_io6).state', 'id(adc_sensor_io7).state' ]
+      - logger.log:
+          level: INFO
+          format: "Active Test PWMs: FET1=25%%, FET2=50%%, FET3=75%%, FET4=90%% (1 kHz)"
+      - logger.log:
+          level: INFO
+          format: "Active Test DACs: DAC0=2.50V (50%%), DAC1=3.50V (70%%)"
+      - logger.log:
+          level: INFO
+          format: "================================="

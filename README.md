@@ -87,3 +87,116 @@ An add-on hat designed to mount directly onto the **Full Version** via headers `
 * **Power Supply Headroom:** The HLK-20M12 provides up to 1.66 A at 12 V. When running multiple relays and external 12 V loads simultaneously, verify total DC power consumption remains under 20 W.
 
 ---
+
+## AD5593R ESPHome Component
+
+This repository includes a custom ESPHome component for the **Analog Devices AD5593R** (8-channel 12-bit configurable ADC / DAC / GPIO).
+
+### How to Import into ESPHome
+
+Add the `external_components` block to your YAML configuration:
+
+#### Option A: Direct from GitHub
+```yaml
+external_components:
+  - source: github://bafallocz/ESPHOME-universal-board
+    components: [ ad5593r ]
+```
+
+#### Option B: Local Component (when compiling inside this repo)
+```yaml
+external_components:
+  - source: components
+    components: [ ad5593r ]
+```
+
+---
+
+### AD5593R Configuration Guide
+
+Any of the 8 pins (`0` to `7`) can be independently configured as an **ADC input**, **DAC output**, **Digital input (`binary_sensor`)**, or **Digital output (`switch`)**.
+
+#### 1. Hub Definition
+```yaml
+ad5593r:
+  - id: ad5593r_hub
+    i2c_id: bus_a
+    address: 0x10
+    # reference_voltage: 2.5V  # Internal reference (default 2.5V)
+    # gain_2x: true            # Default true -> Full range 0 to 5.0 V
+```
+
+#### 2. Analog Outputs (DAC) - Channels 0 to 7
+Outputs range from `0.0` (0 V) to `1.0` (5.0 V):
+```yaml
+output:
+  - platform: ad5593r
+    ad5593r_id: ad5593r_hub
+    channel: 0
+    id: dac_out_0
+
+  - platform: ad5593r
+    ad5593r_id: ad5593r_hub
+    channel: 1
+    id: dac_out_1
+```
+
+Control DAC outputs using a Home Assistant template slider:
+```yaml
+number:
+  - platform: template
+    name: "DAC 0 Output"
+    min_value: 0
+    max_value: 1
+    step: 0.01
+    mode: slider
+    set_action:
+      - output.set_level:
+          id: dac_out_0
+          level: !lambda 'return x;'
+```
+
+#### 3. Analog Inputs (ADC) & Internal Temperature Sensor
+Reports voltage values in **Volts (V)**:
+```yaml
+sensor:
+  - platform: ad5593r
+    ad5593r_id: ad5593r_hub
+    channel: 2
+    name: "AD5593R Analog Input 2"
+    update_interval: 1s
+
+  - platform: ad5593r
+    ad5593r_id: ad5593r_hub
+    channel: 3
+    name: "AD5593R Analog Input 3"
+    update_interval: 1s
+
+  # Chip Internal Temperature Sensor (°C)
+  - platform: ad5593r
+    ad5593r_id: ad5593r_hub
+    channel: temperature
+    name: "AD5593R Internal Temperature"
+    update_interval: 10s
+```
+
+#### 4. Digital Inputs (`binary_sensor`)
+Reads logic state from pins (with optional 85 kΩ internal pull-down):
+```yaml
+binary_sensor:
+  - platform: ad5593r
+    ad5593r_id: ad5593r_hub
+    channel: 4
+    name: "AD5593R Digital Input 4"
+    pulldown: true
+```
+
+#### 5. Digital Outputs (`switch`)
+Controls digital output logic high/low on pins:
+```yaml
+switch:
+  - platform: ad5593r
+    ad5593r_id: ad5593r_hub
+    channel: 5
+    name: "AD5593R Digital Output 5"
+```

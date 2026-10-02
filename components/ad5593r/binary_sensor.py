@@ -15,7 +15,7 @@ CONFIG_SCHEMA = binary_sensor.binary_sensor_schema(AD5593RBinarySensor).extend(
     {
         cv.GenerateID(CONF_AD5593R_ID): cv.use_id(AD5593RComponent),
         cv.Required(CONF_CHANNEL): cv.int_range(min=0, max=7),
-        cv.Optional(CONF_PULLDOWN, default=True): cv.boolean,
+        cv.Optional(CONF_PULLDOWN, default=False): cv.boolean,
     }
 )
 

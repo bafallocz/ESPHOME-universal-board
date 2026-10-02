@@ -44,7 +44,7 @@ BASE_SCHEMA = (
         {
             cv.GenerateID(CONF_AD5593R_ID): cv.use_id(AD5593RComponent),
             cv.Required(CONF_CHANNEL): validate_channel,
-            cv.Optional(CONF_PULLDOWN, default=True): cv.boolean,
+            cv.Optional(CONF_PULLDOWN, default=False): cv.boolean,
         }
     )
     .extend(cv.polling_component_schema("60s"))

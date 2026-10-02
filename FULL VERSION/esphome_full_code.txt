@@ -416,8 +416,7 @@ number:
 # ==============================================================================
 # AD5593R ANALOG SENSORS (ADC Channels & Die Temperature)
 # Measured voltages reported in Volts (0.000 V to 5.000 V)
-# Note: Internal 85 kΩ pull-down resistors are active by default (pulldown: true)
-# so unconnected floating pins read 0.000 V instead of floating at ~0.9 V.
+# High-impedance analog inputs (internal pull-downs disabled for precision measurement)
 # ==============================================================================
 sensor:
   - platform: ad5593r

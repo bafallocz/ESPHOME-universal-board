@@ -280,14 +280,33 @@ bool AD5593RComponent::read_adc_voltage(uint8_t channel, float &voltage) {
 }
 
 bool AD5593RComponent::read_temperature(float &temp_c) {
-  uint16_t raw;
-  if (!this->read_adc_raw(8, raw)) {
+  const uint8_t n_samples = 16;
+  uint16_t samples[n_samples];
+  uint8_t valid = 0;
+  for (uint8_t i = 0; i < n_samples; i++) {
+    uint16_t raw;
+    if (this->read_adc_raw(8, raw)) {
+      samples[valid++] = raw;
+    }
+    delayMicroseconds(50);
+  }
+  if (valid < 4) {
     return false;
   }
+  std::sort(samples, samples + valid);
+  // Discard top and bottom 25% noise spikes, average middle 50%
+  uint8_t start_idx = valid / 4;
+  uint8_t end_idx = valid - start_idx;
+  uint32_t sum = 0;
+  for (uint8_t i = start_idx; i < end_idx; i++) {
+    sum += samples[i];
+  }
+  float avg_raw = static_cast<float>(sum) / (end_idx - start_idx);
+
   if (this->gain_2x_) {
-    temp_c = 25.0f + (static_cast<float>(raw) - 409.5f) / 1.327f;
+    temp_c = 25.0f + (avg_raw - 409.5f) / 1.327f;
   } else {
-    temp_c = 25.0f + (static_cast<float>(raw) - 819.0f) / 2.654f;
+    temp_c = 25.0f + (avg_raw - 819.0f) / 2.654f;
   }
   return true;
 }

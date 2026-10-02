@@ -468,6 +468,10 @@ sensor:
     name: "AD5593R Chip Temperature"
     id: ad5593r_die_temp
     update_interval: 5s
+    filters:
+      - sliding_window_moving_average:
+          window_size: 5
+          send_every: 1
 
 # ==============================================================================
 # PERIODIC DIAGNOSTIC LOGGER

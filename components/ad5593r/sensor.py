@@ -2,8 +2,11 @@ import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome.components import sensor
 from esphome.const import (
+    CONF_ACCURACY_DECIMALS,
     CONF_CHANNEL,
+    CONF_DEVICE_CLASS,
     CONF_ID,
+    CONF_UNIT_OF_MEASUREMENT,
     DEVICE_CLASS_TEMPERATURE,
     DEVICE_CLASS_VOLTAGE,
     STATE_CLASS_MEASUREMENT,
@@ -30,9 +33,10 @@ def validate_channel(value):
     raise cv.Invalid("Channel must be an integer between 0 and 7, or 'temperature'")
 
 
-CONFIG_SCHEMA = (
+BASE_SCHEMA = (
     sensor.sensor_schema(
         AD5593RSensor,
+        state_class=STATE_CLASS_MEASUREMENT,
     )
     .extend(
         {
@@ -44,33 +48,33 @@ CONFIG_SCHEMA = (
 )
 
 
+def validate_sensor(config):
+    ch = config[CONF_CHANNEL]
+    if ch == 8:
+        if CONF_UNIT_OF_MEASUREMENT not in config:
+            config[CONF_UNIT_OF_MEASUREMENT] = UNIT_CELSIUS
+        if CONF_DEVICE_CLASS not in config:
+            config[CONF_DEVICE_CLASS] = DEVICE_CLASS_TEMPERATURE
+        if CONF_ACCURACY_DECIMALS not in config:
+            config[CONF_ACCURACY_DECIMALS] = 1
+    else:
+        if CONF_UNIT_OF_MEASUREMENT not in config:
+            config[CONF_UNIT_OF_MEASUREMENT] = UNIT_VOLT
+        if CONF_DEVICE_CLASS not in config:
+            config[CONF_DEVICE_CLASS] = DEVICE_CLASS_VOLTAGE
+        if CONF_ACCURACY_DECIMALS not in config:
+            config[CONF_ACCURACY_DECIMALS] = 3
+    return config
+
+
+CONFIG_SCHEMA = cv.All(BASE_SCHEMA, validate_sensor)
+
+
 async def to_code(config):
     cg.add_define("USE_SENSOR")
     parent = await cg.get_variable(config[CONF_AD5593R_ID])
     ch = config[CONF_CHANNEL]
     var = cg.new_Pvariable(config[CONF_ID], parent, ch)
     await cg.register_component(var, config)
-
-    # Apply default units and classes if not overridden by the user
-    sensor_conf = dict(config)
-    if ch == 8:
-        if sensor.CONF_UNIT_OF_MEASUREMENT not in config:
-            sensor_conf[sensor.CONF_UNIT_OF_MEASUREMENT] = UNIT_CELSIUS
-        if sensor.CONF_DEVICE_CLASS not in config:
-            sensor_conf[sensor.CONF_DEVICE_CLASS] = DEVICE_CLASS_TEMPERATURE
-        if sensor.CONF_STATE_CLASS not in config:
-            sensor_conf[sensor.CONF_STATE_CLASS] = STATE_CLASS_MEASUREMENT
-        if sensor.CONF_ACCURACY_DECIMALS not in config:
-            sensor_conf[sensor.CONF_ACCURACY_DECIMALS] = 1
-    else:
-        if sensor.CONF_UNIT_OF_MEASUREMENT not in config:
-            sensor_conf[sensor.CONF_UNIT_OF_MEASUREMENT] = UNIT_VOLT
-        if sensor.CONF_DEVICE_CLASS not in config:
-            sensor_conf[sensor.CONF_DEVICE_CLASS] = DEVICE_CLASS_VOLTAGE
-        if sensor.CONF_STATE_CLASS not in config:
-            sensor_conf[sensor.CONF_STATE_CLASS] = STATE_CLASS_MEASUREMENT
-        if sensor.CONF_ACCURACY_DECIMALS not in config:
-            sensor_conf[sensor.CONF_ACCURACY_DECIMALS] = 3
-
-    await sensor.register_sensor(var, sensor_conf)
+    await sensor.register_sensor(var, config)
     cg.add(parent.register_adc_sensor(var))

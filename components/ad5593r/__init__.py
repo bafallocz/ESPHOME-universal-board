@@ -23,7 +23,7 @@ CONFIG_SCHEMA = (
         }
     )
     .extend(cv.COMPONENT_SCHEMA)
-    .extend(i2c.i2c_device_schema(0x10))
+    .extend(i2c.i2c_device_schema(0x11))
 )
 
 

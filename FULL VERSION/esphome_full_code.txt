@@ -141,13 +141,13 @@ pca9685:
 
 # ==============================================================================
 # I2C EXPANDER 2: AD5593R (8-channel Configurable ADC / DAC / GPIO)
-# I2C Address: 0x10 (A0 tied to GND)
+# I2C Address: 0x11 (Pin A0 pulled HIGH on PCB)
 # Voltage Range: 0 to 5.0 V (Internal 2.5V reference + 2x Gain buffer)
 # ==============================================================================
 ad5593r:
   - id: ad5593r_hub
     i2c_id: bus_a
-    address: 0x10
+    address: 0x11
     reference_voltage: 2.5V
     gain_2x: true  # Full 0-5.0V output and input range
 
